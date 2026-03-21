@@ -1,0 +1,8 @@
+[project]
+name = "cross-arbitrage-bot"
+version = "0.1.0"
+description = "Display-only cross-exchange arbitrage detector for Polymarket and Kalshi."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
