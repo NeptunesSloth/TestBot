@@ -1,98 +1,77 @@
 import unittest
+from unittest.mock import patch
 
-from arbitrage_bot import Opportunity, VenueQuote, detect_opportunities, normalize_market_title, render_opportunities, title_similarity
+from cross_arbitrage.core import compare_titles, detect_opportunities, render_opportunities_text
+from cross_arbitrage.dashboard import build_dashboard_html
+from cross_arbitrage.data import FixtureKalshiClient, FixturePolymarketClient, run_scan
 
 
 class ArbitrageBotTests(unittest.TestCase):
-    def test_normalize_market_title_removes_noise(self):
-        self.assertEqual(
-            normalize_market_title("Will Bitcoin close above $100k on Dec. 31?"),
-            "bitcoin close above 100k dec 31",
-        )
-
-    def test_title_similarity_prefers_same_question(self):
-        similar = title_similarity(
-            "Will BTC close above 100k on Dec 31?",
+    def test_strict_matching_accepts_same_market(self):
+        diagnostics = compare_titles(
+            "Will Bitcoin close above $100k on Dec 31?",
             "Bitcoin above $100k by December 31?",
         )
-        different = title_similarity(
-            "Will BTC close above 100k on Dec 31?",
-            "Will the Fed cut rates next meeting?",
-        )
-        self.assertGreater(similar, different)
-        self.assertGreater(similar, 0.55)
+        self.assertGreaterEqual(diagnostics.score, 0.72)
+        self.assertIn("100k", diagnostics.shared_numbers)
 
-    def test_detect_opportunities_finds_cross_market_edge(self):
-        poly = VenueQuote(
-            venue="Polymarket",
-            market_id="poly-1",
-            title="Will Bitcoin close above $100k on Dec 31?",
-            url="https://polymarket.com/event/btc-100k",
-            yes_bid=0.57,
-            yes_ask=0.60,
-            no_bid=0.40,
-            no_ask=0.43,
-            last_price=0.59,
+    def test_strict_matching_rejects_number_mismatch(self):
+        diagnostics = compare_titles(
+            "Will Bitcoin close above $100k on Dec 31?",
+            "Bitcoin above $90k by December 31?",
         )
-        kalshi = VenueQuote(
-            venue="Kalshi",
-            market_id="KXBTC100K-24DEC31-T100",
-            title="Bitcoin above $100k by December 31?",
-            url="https://kalshi.com/markets/KXBTC100K-24DEC31-T100",
-            yes_bid=0.44,
-            yes_ask=0.62,
-            no_bid=0.53,
-            no_ask=0.36,
-            last_price=0.45,
-        )
+        self.assertEqual(diagnostics.score, 0.0)
+        self.assertEqual(diagnostics.reason, "numeric tokens do not align")
 
-        opportunities = detect_opportunities([poly], [kalshi], min_similarity=0.55, min_edge=0.02)
-
-        self.assertEqual(len(opportunities), 1)
-        self.assertEqual(
-            opportunities[0].strategy,
-            "Buy YES on Polymarket + Buy NO on Kalshi",
+    def test_strict_matching_rejects_direction_mismatch(self):
+        diagnostics = compare_titles(
+            "Will ETH close above $5k on Dec 31?",
+            "Ethereum below $5k by December 31?",
         )
-        self.assertAlmostEqual(opportunities[0].locked_in_edge, 0.04)
+        self.assertEqual(diagnostics.score, 0.0)
+        self.assertEqual(diagnostics.reason, "directional terms conflict")
 
-    def test_render_opportunities_includes_urls(self):
-        poly = VenueQuote(
-            venue="Polymarket",
-            market_id="poly-1",
-            title="Will ETH close above $5k on Dec 31?",
-            url="https://polymarket.com/event/eth-5k",
-            yes_bid=0.30,
-            yes_ask=0.31,
-            no_bid=0.69,
-            no_ask=0.70,
-            last_price=0.305,
-        )
-        kalshi = VenueQuote(
-            venue="Kalshi",
-            market_id="KXETH5K-24DEC31-T5000",
-            title="ETH above $5k by December 31?",
-            url="https://kalshi.com/markets/KXETH5K-24DEC31-T5000",
-            yes_bid=0.20,
-            yes_ask=0.21,
-            no_bid=0.78,
-            no_ask=0.68,
-            last_price=0.205,
-        )
-        opportunity = Opportunity(
-            polymarket=poly,
-            kalshi=kalshi,
-            strategy="Buy YES on Polymarket + Buy NO on Kalshi",
-            total_cost=0.99,
-            locked_in_edge=0.01,
-            title_similarity=0.8,
-            price_dislocation=0.1,
-        )
+    def test_fixture_scan_finds_one_opportunity(self):
+        result = run_scan(mode="mock", markets_per_venue=20, min_similarity=0.72, min_edge=0.02)
+        self.assertEqual(result.source_mode, "mock")
+        self.assertEqual(result.polymarket_count, 3)
+        self.assertEqual(result.kalshi_count, 3)
+        self.assertEqual(len(result.opportunities), 1)
+        self.assertIn("Bitcoin", result.opportunities[0].polymarket.title)
 
-        rendered = render_opportunities([opportunity], limit=5)
+    def test_auto_mode_falls_back_to_fixtures(self):
+        with patch("cross_arbitrage.data.LivePolymarketClient.fetch_markets", side_effect=RuntimeError("network down")):
+            result = run_scan(mode="auto", markets_per_venue=20, min_similarity=0.72, min_edge=0.02)
+        self.assertEqual(result.source_mode, "mock-fallback")
+        self.assertIsNotNone(result.warning)
+        self.assertEqual(len(result.opportunities), 1)
 
-        self.assertIn("https://polymarket.com/event/eth-5k", rendered)
-        self.assertIn("https://kalshi.com/markets/KXETH5K-24DEC31-T5000", rendered)
-        self.assertIn("Locked-in edge", rendered)
+    def test_render_text_includes_source_mode(self):
+        result = run_scan(mode="mock", markets_per_venue=20, min_similarity=0.72, min_edge=0.02)
+        rendered = render_opportunities_text(result, limit=5)
+        self.assertIn("Source mode: mock", rendered)
+        self.assertIn("Shared tokens", rendered)
+        self.assertIn("https://polymarket.com/event/bitcoin-above-100k-dec-31", rendered)
+
+    def test_dashboard_html_contains_summary_cards(self):
+        result = run_scan(mode="mock", markets_per_venue=20, min_similarity=0.72, min_edge=0.02)
+        html = build_dashboard_html(result, limit=5, refresh_seconds=30)
+        self.assertIn("Cross Arbitrage Dashboard", html)
+        self.assertIn("Source mode: mock", html)
+        self.assertIn("Displayed opportunities", html)
+        self.assertIn("Polymarket", html)
+        self.assertIn("Kalshi", html)
+
+    def test_fixture_clients_load_expected_counts(self):
+        self.assertEqual(len(FixturePolymarketClient().fetch_markets(10)), 3)
+        self.assertEqual(len(FixtureKalshiClient().fetch_markets(10)), 3)
+
+    def test_detect_opportunities_filters_unrelated_market(self):
+        poly_quotes = FixturePolymarketClient().fetch_markets(10)
+        kalshi_quotes = FixtureKalshiClient().fetch_markets(10)
+        opportunities = detect_opportunities(poly_quotes, kalshi_quotes, min_similarity=0.72, min_edge=0.02)
+        titles = [item.polymarket.title for item in opportunities]
+        self.assertNotIn("Will the Fed cut rates at the next meeting?", titles)
 
 
 if __name__ == "__main__":
