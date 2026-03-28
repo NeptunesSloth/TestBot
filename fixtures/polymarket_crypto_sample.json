@@ -1,0 +1,47 @@
+[
+  {
+    "id": "btc80",
+    "slug": "btc-above-80k-jun-30",
+    "question": "Will BTC be above $80k by Jun 30, 2026?",
+    "bestBid": 0.64,
+    "bestAsk": 0.67,
+    "volume": 9100,
+    "liquidity": 8500
+  },
+  {
+    "id": "btc90",
+    "slug": "btc-above-90k-jun-30",
+    "question": "Will BTC be above $90k by Jun 30, 2026?",
+    "bestBid": 0.71,
+    "bestAsk": 0.74,
+    "volume": 9200,
+    "liquidity": 8400
+  },
+  {
+    "id": "eth4",
+    "slug": "eth-between-3k-4k-jun-30",
+    "question": "Will ETH be between $3k and $4k on Jun 30, 2026?",
+    "bestBid": 0.30,
+    "bestAsk": 0.32,
+    "volume": 8000,
+    "liquidity": 7000
+  },
+  {
+    "id": "eth5",
+    "slug": "eth-between-4k-5k-jun-30",
+    "question": "Will ETH be between $4k and $5k on Jun 30, 2026?",
+    "bestBid": 0.27,
+    "bestAsk": 0.29,
+    "volume": 8000,
+    "liquidity": 7100
+  },
+  {
+    "id": "eth6",
+    "slug": "eth-between-5k-6k-jun-30",
+    "question": "Will ETH be between $5k and $6k on Jun 30, 2026?",
+    "bestBid": 0.26,
+    "bestAsk": 0.28,
+    "volume": 7900,
+    "liquidity": 7050
+  }
+]

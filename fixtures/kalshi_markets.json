@@ -1,0 +1,38 @@
+{
+  "markets": [
+    {
+      "ticker": "KXBTC100K-26DEC31-T100000",
+      "title": "Bitcoin above $100k by December 31?",
+      "yes_bid": 44,
+      "yes_ask": 62,
+      "no_bid": 37,
+      "no_ask": 36,
+      "last_price": 45,
+      "volume": 880000,
+      "close_date": "2026-12-31T23:59:59Z"
+    },
+    {
+      "ticker": "KXETH5K-26DEC31-T5000",
+      "title": "Ethereum above $5k by December 31?",
+      "yes_bid": 34,
+      "yes_ask": 36,
+      "no_bid": 64,
+      "no_ask": 72,
+      "last_price": 35,
+      "volume": 320000,
+      "close_date": "2026-12-31T23:59:59Z"
+    },
+    {
+      "ticker": "KXFEDHIKE-26MAY01",
+      "title": "Will the Fed raise rates at the next meeting?",
+      "yes_bid": 55,
+      "yes_ask": 57,
+      "no_bid": 43,
+      "no_ask": 45,
+      "last_price": 56,
+      "volume": 410000,
+      "close_date": "2026-05-01T18:00:00Z"
+    }
+  ],
+  "cursor": ""
+}
